@@ -10,10 +10,16 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+
+/**
+ * Server class provides main server functions
+ * Receive message from clients
+ * Send message to clients
+ * Create new client thread
+ */
 public class Server {
     private Socket clientSocket;
     private ServerSocket serverSocket = null;
-    private BufferedReader input = null;
     private ChatHistory chatHistory = new ChatHistory();
     private UserList userList = new UserList();
 
@@ -25,13 +31,13 @@ public class Server {
             System.out.println("Server started on IP -> " + serverSocket.getLocalSocketAddress());
             System.out.println("Waiting for a Client...");
 
+            // Listen for new client connections
             while (true) {
                 clientSocket = serverSocket.accept();
 
                 System.out.println("New client connected!");
 
                 new ClientConnectionThread(clientSocket);
-                System.out.println("Thread started!");
             }
 
         } catch (IOException ex) {
@@ -43,11 +49,11 @@ public class Server {
      * Class handler to provide client server interaction
      */
     private class ClientConnectionThread extends Thread {
-        private Socket clientSocket;
+        private final Socket clientSocket;
 
         public ClientConnectionThread(Socket clientSocket){
             this.clientSocket = clientSocket;
-            this.start();;
+            this.start();
         }
 
         @Override
@@ -57,22 +63,21 @@ public class Server {
 
             try {
                 ObjectInputStream input = new ObjectInputStream(this.clientSocket.getInputStream());
+                ObjectOutputStream output = new ObjectOutputStream(this.clientSocket.getOutputStream());
 
                 // Receive ping message from user, to complete connection
                 mes = (Message) input.readObject();
                 login = mes.getUsername();
-
-                ObjectOutputStream output = new ObjectOutputStream(this.clientSocket.getOutputStream());
+                // Create client
+                Client client = new Client(login, clientSocket, input, output);
 
                 System.out.println(mes.getMessage());
                 // Update and send user chat history
                 chatHistory.updateChatHistory(mes);
-                output.writeObject(new Message("Server",
+                client.getClientOutput().writeObject(new Message("Server",
                         "Chat_Bot",
                         "Ввостановление истории сообщений (5 сообщ.): \n " + chatHistory.getChatHistory()));
 
-                // Create new client, add to online list
-                Client client = new Client(login, clientSocket, input, output);
                 userList.addUser(client);
                 sendMsgToAllExceptUser(new Message("Server",
                         "Chat_Bot",
@@ -80,8 +85,10 @@ public class Server {
 
                 // Loop handler, there we get message from users
                 while (true) {
-                    mes = (Message) input.readObject();
-                    if (mes.getText().equals("/Exit")){
+                    mes = (Message) client.getClientInput().readObject();
+                    if (mes.getText().equals("Disconnected from server!")){
+                        // Send reset message to close ServerHandler (in ClientSender
+                        sendMsgToAllUsers(mes);
                         break;
                     }
                     // Log in server
@@ -91,9 +98,12 @@ public class Server {
                     sendMsgToAllExceptUser(mes, client);
                 }
 
+                // Close all io threads and socket
                 output.close();
                 input.close();
                 clientSocket.close();
+                // Delete user from online lists
+                userList.deleteUser(login);
 
             }
             catch (IOException | ClassNotFoundException ex){

@@ -43,7 +43,10 @@ public class Message implements Serializable {
         return userIP;
     }
 
-
+    /**
+     * Get Message as String
+     * @return - String bigMes
+     */
     public String getMessage(){
         return "[IP:" + userIP + "]" + " "
                 + time + " " +

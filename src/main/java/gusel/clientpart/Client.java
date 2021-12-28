@@ -3,6 +3,13 @@ package gusel.clientpart;
 import java.io.*;
 import java.net.Socket;
 
+/**
+ * Client class
+ * Contains information about client
+ * Login, socket, output, input
+ * Uses in online users list
+ * Send messages
+ */
 public class Client implements Serializable {
     private Socket socket;
     private ObjectInputStream clientInput = null;
